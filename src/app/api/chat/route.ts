@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
 import { chatModel, hasLiveModel, streamText } from '@/lib/models'
 import { searchChunks } from '@/lib/index-document'
-import { clipHistory, type ChatLine } from '@/lib/chat'
+import { clipHistory, clipQuestion, type ChatLine } from '@/lib/chat'
 
 function sse(data: unknown) {
   return `data: ${JSON.stringify(data)}\n\n`
 }
+
+export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
@@ -14,7 +16,7 @@ export async function POST(request: NextRequest) {
     locale?: string
     history?: ChatLine[]
   }
-  const question = body.question?.trim()
+  const question = clipQuestion(body.question ?? '')
   if (!question) {
     return new Response(JSON.stringify({ error: 'question' }), { status: 400 })
   }

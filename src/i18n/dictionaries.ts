@@ -31,7 +31,7 @@ export const dictionaries = {
     uploading: 'A indexar…',
     thinking: 'A procurar no texto…',
     demoHint:
-      'Sem chave OpenAI ou Anthropic, os embeddings e a resposta usam um índice lexical local. Com chave, passa a embeddings oficiais e ao modelo escolhido.',
+      'Sem chave, a busca e a resposta usam o índice lexical. Com OpenAI há embeddings oficiais. Com Anthropic o chat usa Claude e a busca continua lexical.',
     errorPdf: 'Não consegui ler este PDF. Experimenta outro ficheiro.',
     errorEmpty: 'Este PDF não tem texto extraível.',
     errorChat: 'Não consegui responder. Tenta outra pergunta.',
@@ -76,7 +76,7 @@ export const dictionaries = {
     uploading: 'Indexing…',
     thinking: 'Searching the text…',
     demoHint:
-      'Without an OpenAI or Anthropic key, embeddings and answers use a local lexical index. With a key, official embeddings and the chosen model take over.',
+      'Without a key, search and answers use the lexical index. With OpenAI you get official embeddings. With Anthropic, chat uses Claude and search stays lexical.',
     errorPdf: 'This PDF could not be read. Try another file.',
     errorEmpty: 'This PDF has no extractable text.',
     errorChat: 'Could not answer. Try another question.',

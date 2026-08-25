@@ -5,6 +5,8 @@ import { indexDocument } from '@/lib/index-document'
 import { rejectPdf } from '@/lib/chat'
 import { hasLiveModel } from '@/lib/models'
 
+export const maxDuration = 60
+
 export async function GET() {
   const documents = await prisma.document.findMany({
     orderBy: { createdAt: 'desc' },

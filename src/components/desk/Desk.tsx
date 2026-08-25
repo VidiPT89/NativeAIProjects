@@ -1,6 +1,6 @@
 'use client'
 
-import { rejectPdf } from '@/lib/chat'
+import { parseSseBlock, rejectPdf } from '@/lib/chat'
 import { useLocale } from '@/i18n/LocaleProvider'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -51,7 +51,10 @@ export function Desk() {
   }, [])
 
   useEffect(() => {
-    void loadDocs()
+    const id = requestAnimationFrame(() => {
+      void loadDocs()
+    })
+    return () => cancelAnimationFrame(id)
   }, [loadDocs])
 
   useEffect(() => {
@@ -122,28 +125,38 @@ export function Desk() {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let answer = ''
-      let sources: Source[] = []
+      const acc = { answer: '', sources: [] as Source[] }
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const parts = buffer.split('\n\n')
-        buffer = parts.pop() || ''
+      const applyParts = (parts: string[]) => {
         for (const part of parts) {
-          const line = part.replace(/^data: /, '').trim()
-          if (!line) continue
-          const event = JSON.parse(line) as { type: string; text?: string; sources?: Source[] }
-          if (event.type === 'sources' && event.sources) sources = event.sources
+          const event = parseSseBlock(part)
+          if (!event) continue
+          if (event.type === 'sources' && Array.isArray(event.sources)) {
+            acc.sources = event.sources as Source[]
+          }
           if (event.type === 'text' && event.text) {
-            answer += event.text
+            acc.answer += event.text
+            const snapshot = acc.answer
+            const cited = acc.sources
             setTurns((prev) =>
-              prev.map((turn) => (turn.id === assistantId ? { ...turn, content: answer, sources } : turn)),
+              prev.map((turn) => (turn.id === assistantId ? { ...turn, content: snapshot, sources: cited } : turn)),
             )
           }
         }
       }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          buffer += decoder.decode()
+          break
+        }
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() || ''
+        applyParts(parts)
+      }
+      applyParts(buffer ? [buffer] : [])
     } catch {
       setError(t.errorChat)
       setTurns((prev) => prev.filter((turn) => turn.id !== assistantId && turn.id !== userTurn.id))

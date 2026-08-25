@@ -23,7 +23,8 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('pt')
 
   useEffect(() => {
-    setLocaleState(readLocale())
+    const id = requestAnimationFrame(() => setLocaleState(readLocale()))
+    return () => cancelAnimationFrame(id)
   }, [])
 
   useEffect(() => {

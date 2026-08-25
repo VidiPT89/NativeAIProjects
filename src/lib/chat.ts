@@ -14,7 +14,7 @@ export type ChatLine = { role: 'user' | 'assistant'; content: string }
 
 export function clipHistory(lines: ChatLine[], maxTurns = 6, maxChars = 700): ChatLine[] {
   return lines
-    .filter((line) => line.content.trim())
+    .filter((line) => (line.role === 'user' || line.role === 'assistant') && line.content.trim())
     .slice(-maxTurns)
     .map((line) => ({
       role: line.role,
@@ -25,4 +25,22 @@ export function clipHistory(lines: ChatLine[], maxTurns = 6, maxChars = 700): Ch
 export function pickHits<T extends { score: number }>(rows: T[], min = 0.04, limit = 5): T[] {
   const strong = rows.filter((row) => row.score >= min)
   return (strong.length ? strong : rows).slice(0, limit)
+}
+
+export function filledKey(value?: string): boolean {
+  return (value?.trim().length ?? 0) > 8
+}
+
+export function clipQuestion(text: string, max = 4000): string {
+  return text.trim().slice(0, max)
+}
+
+export function parseSseBlock(block: string): { type: string; text?: string; sources?: unknown } | null {
+  const line = block.replace(/^data: /, '').trim()
+  if (!line) return null
+  try {
+    return JSON.parse(line) as { type: string; text?: string; sources?: unknown }
+  } catch {
+    return null
+  }
 }

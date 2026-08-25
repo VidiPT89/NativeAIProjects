@@ -6,7 +6,7 @@
 
 FOLIO is a Next.js desk for talking to your own PDFs. You drop a file, the text is split into overlapping chunks, each chunk becomes a vector, and PostgreSQL with pgvector returns the closest passages. The answer streams into the chat with page citations. The UI is European Portuguese / English, with the language toggle remembered in `localStorage`.
 
-Without `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`, embeddings and answers use a local lexical index so the desk still runs on a laptop. With a key, official embeddings (`text-embedding-3-small`) and the chosen chat model take over.
+Without `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`, search and answers use a local lexical index so the desk still runs on a laptop. An OpenAI key enables official embeddings (`text-embedding-3-small`). An Anthropic key streams chat from Claude; retrieval stays lexical unless OpenAI is also set.
 
 ## ✨ Main Features
 
@@ -100,7 +100,7 @@ To use a hosted model, set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in `.env`. `A
 npm test
 ```
 
-`node:test` checks chunking across page breaks and that lexical embeddings rank a matching query above noise.
+`node:test` checks chunking, PDF size/type guards, chat history clipping and that lexical embeddings rank a matching query above noise.
 
 ## 📄 License
 

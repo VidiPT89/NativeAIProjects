@@ -14,7 +14,12 @@ export async function indexDocument(title: string, text: string, pageCount: numb
     data: { title, pageCount: pageCount || Math.max(...pieces.map((piece) => piece.page)) },
   })
 
-  await insertChunks(document.id, pieces)
+  try {
+    await insertChunks(document.id, pieces)
+  } catch (error) {
+    await prisma.document.delete({ where: { id: document.id } }).catch(() => undefined)
+    throw error
+  }
   return document
 }
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { chunkText, cosine, lexicalEmbedding } from '../src/lib/rag'
-import { clipHistory, pickHits, rejectPdf } from '../src/lib/chat'
+import { clipHistory, filledKey, parseSseBlock, pickHits, rejectPdf } from '../src/lib/chat'
 
 test('chunkText splits long pages and keeps page numbers', () => {
   const page = `${'flexões '.repeat(80)}\f${'agachamentos '.repeat(80)}`
@@ -57,4 +57,11 @@ test('pickHits prefers scores above the floor', () => {
     rows.map((row) => row.score),
     [0.2, 0.09],
   )
+})
+
+test('blank keys stay off and SSE junk is ignored', () => {
+  assert.equal(filledKey(''), false)
+  assert.equal(filledKey('sk-ant-ok'), true)
+  assert.equal(parseSseBlock('data: not-json'), null)
+  assert.equal(parseSseBlock('data: {"type":"text","text":"oi"}')?.text, 'oi')
 })

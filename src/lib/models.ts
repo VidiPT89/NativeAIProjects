@@ -1,14 +1,15 @@
 import { openai } from '@ai-sdk/openai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { embed, streamText } from 'ai'
+import { filledKey } from '@/lib/chat'
 import { EMBEDDING_DIM, lexicalEmbedding, l2Normalize } from '@/lib/rag'
 
 export function hasLiveModel(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY)
+  return filledKey(process.env.OPENAI_API_KEY) || filledKey(process.env.ANTHROPIC_API_KEY)
 }
 
 export async function embedText(text: string): Promise<number[]> {
-  if (process.env.OPENAI_API_KEY) {
+  if (filledKey(process.env.OPENAI_API_KEY)) {
     const result = await embed({
       model: openai.embedding('text-embedding-3-small'),
       value: text,
@@ -19,11 +20,11 @@ export async function embedText(text: string): Promise<number[]> {
 }
 
 export function chatModel() {
-  if (process.env.OPENAI_API_KEY) {
+  if (filledKey(process.env.OPENAI_API_KEY)) {
     const id = process.env.AI_MODEL
     return openai(id && !id.startsWith('claude') ? id : 'gpt-4o-mini')
   }
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (filledKey(process.env.ANTHROPIC_API_KEY)) {
     const id = process.env.AI_MODEL
     return anthropic(id && id.startsWith('claude') ? id : 'claude-3-5-haiku-latest')
   }

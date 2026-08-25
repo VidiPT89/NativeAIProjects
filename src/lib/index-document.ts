@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { chunkText, toVectorLiteral, type TextChunk } from '@/lib/rag'
 import { embedText } from '@/lib/models'
+import { pickHits } from '@/lib/chat'
 import { randomUUID } from 'node:crypto'
 
 export async function indexDocument(title: string, text: string, pageCount: number) {
@@ -70,5 +71,5 @@ export async function searchChunks(query: string, documentId?: string, limit = 6
         limit,
       )
 
-  return rows
+  return pickHits(rows)
 }

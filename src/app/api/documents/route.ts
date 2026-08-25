@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { extractPdfText, titleFromFilename } from '@/lib/pdf'
 import { indexDocument } from '@/lib/index-document'
+import { rejectPdf } from '@/lib/chat'
+import { hasLiveModel } from '@/lib/models'
 
 export async function GET() {
   const documents = await prisma.document.findMany({
     orderBy: { createdAt: 'desc' },
     include: { _count: { select: { chunks: true } } },
   })
-  return NextResponse.json(documents)
+  return NextResponse.json({ documents, liveChat: hasLiveModel() })
 }
 
 export async function POST(request: NextRequest) {
@@ -16,6 +18,11 @@ export async function POST(request: NextRequest) {
   const file = form.get('file')
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'file' }, { status: 400 })
+  }
+
+  const reject = rejectPdf(file)
+  if (reject) {
+    return NextResponse.json({ error: reject }, { status: 400 })
   }
 
   try {

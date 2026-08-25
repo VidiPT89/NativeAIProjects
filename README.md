@@ -83,7 +83,8 @@ To use a hosted model, set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in `.env`. `A
 1. Toggle **PT** or **EN** in the header.
 2. Open the desk and upload a PDF (or use the seeded sample).
 3. Pick one document or search across all of them.
-4. Ask a question and read the streamed answer with page sources.
+4. Ask a question (or tap a suggestion) and read the streamed answer with page sources.
+5. Open a cited source to read the excerpt. Enter sends; Shift+Enter adds a line.
 
 ## 🔌 API Endpoints
 

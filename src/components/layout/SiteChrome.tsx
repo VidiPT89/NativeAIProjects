@@ -3,10 +3,13 @@
 import { useLocale } from '@/i18n/LocaleProvider'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 
 export function SiteChrome({ children }: { children: ReactNode }) {
   const { t, locale, setLocale } = useLocale()
+  const pathname = usePathname()
+  const onDesk = pathname === '/desk'
 
   return (
     <div className="relative z-10 min-h-dvh">
@@ -16,7 +19,7 @@ export function SiteChrome({ children }: { children: ReactNode }) {
             {t.brand}
           </Link>
           <nav className="flex flex-wrap items-center gap-2 text-sm">
-            <Link href="/desk" className="btn">
+            <Link href="/desk" className={onDesk ? 'btn' : 'btn-ghost'}>
               {t.enter}
             </Link>
             <div className="flex overflow-hidden rounded-full border border-[#f4e6c8]/25">

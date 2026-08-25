@@ -82,6 +82,17 @@ body {
   background: linear-gradient(90deg, transparent, #ff7a00, #ffaa00, transparent);
 }
 
+.paper-stack {
+  position: absolute;
+  inset: 18px -14px -18px 14px;
+  border-radius: 16px;
+  background: rgba(244, 230, 200, 0.08);
+  box-shadow:
+    10px 12px 0 -4px rgba(18, 8, 0, 0.95),
+    10px 12px 0 -3px rgba(255, 122, 0, 0.28),
+    18px 22px 0 -8px rgba(5, 5, 5, 0.9);
+}
+
 input,
 textarea,
 button {

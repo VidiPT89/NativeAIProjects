@@ -19,19 +19,22 @@ export function Landing() {
           {t.enter}
         </Link>
       </div>
-      <motion.ul
-        initial={{ opacity: 0, x: 24 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
-        className="sheet space-y-3 p-8"
-      >
+      <div className="relative">
+        <div className="paper-stack" aria-hidden />
+        <motion.ul
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
+          className="sheet relative space-y-3 p-8"
+        >
         {feats.map((feat) => (
           <li key={feat} className="flex items-center gap-3 border-b border-[#f4e6c8]/10 py-3 last:border-0">
             <span className="h-2 w-2 rounded-full bg-[#ff7a00]" />
             {feat}
           </li>
         ))}
-      </motion.ul>
+        </motion.ul>
+      </div>
     </div>
   )
 }

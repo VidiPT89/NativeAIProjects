@@ -1,5 +1,6 @@
 'use client'
 
+import { rejectPdf } from '@/lib/chat'
 import { useLocale } from '@/i18n/LocaleProvider'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -24,18 +25,29 @@ type ChatTurn = {
 export function Desk() {
   const { t, locale } = useLocale()
   const [docs, setDocs] = useState<Doc[]>([])
+  const [liveChat, setLiveChat] = useState(false)
   const [selected, setSelected] = useState<string>('all')
-  const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [asking, setAsking] = useState(false)
   const [error, setError] = useState('')
   const [question, setQuestion] = useState('')
   const [turns, setTurns] = useState<ChatTurn[]>([])
+  const [openSource, setOpenSource] = useState<string | null>(null)
   const [drag, setDrag] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const loadDocs = useCallback(async () => {
     const res = await fetch('/api/documents')
-    if (res.ok) setDocs((await res.json()) as Doc[])
+    if (!res.ok) return
+    const data = (await res.json()) as { documents?: Doc[]; liveChat?: boolean } | Doc[]
+    if (Array.isArray(data)) {
+      setDocs(data)
+      return
+    }
+    setDocs(data.documents ?? [])
+    setLiveChat(Boolean(data.liveChat))
   }, [])
 
   useEffect(() => {
@@ -46,19 +58,33 @@ export function Desk() {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [turns])
 
+  function uploadError(code?: string) {
+    if (code === 'empty') return t.errorEmpty
+    if (code === 'type') return t.errorType
+    if (code === 'size') return t.errorSize
+    return t.errorPdf
+  }
+
   async function upload(file: File) {
-    setBusy(true)
+    const reject = rejectPdf(file)
+    if (reject) {
+      setError(uploadError(reject))
+      return
+    }
+    setUploading(true)
     setError('')
     const body = new FormData()
     body.append('file', file)
     const res = await fetch('/api/documents', { method: 'POST', body })
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string }
-      setError(data.error === 'empty' ? t.errorEmpty : t.errorPdf)
+      setError(uploadError(data.error))
     } else {
+      const created = (await res.json()) as Doc
       await loadDocs()
+      setSelected(created.id)
     }
-    setBusy(false)
+    setUploading(false)
   }
 
   async function remove(id: string) {
@@ -67,13 +93,14 @@ export function Desk() {
     await loadDocs()
   }
 
-  async function ask() {
-    const text = question.trim()
-    if (!text || busy) return
+  async function ask(preset?: string) {
+    const text = (preset ?? question).trim()
+    if (!text || asking || uploading) return
     setQuestion('')
     const userTurn: ChatTurn = { id: crypto.randomUUID(), role: 'user', content: text }
+    const history = [...turns, userTurn].map((turn) => ({ role: turn.role, content: turn.content }))
     setTurns((prev) => [...prev, userTurn])
-    setBusy(true)
+    setAsking(true)
     setError('')
 
     const assistantId = crypto.randomUUID()
@@ -87,6 +114,7 @@ export function Desk() {
           question: text,
           documentId: selected === 'all' ? undefined : selected,
           locale,
+          history: history.slice(0, -1),
         }),
       })
       if (!res.ok || !res.body) throw new Error('chat')
@@ -120,14 +148,23 @@ export function Desk() {
       setError(t.errorChat)
       setTurns((prev) => prev.filter((turn) => turn.id !== assistantId && turn.id !== userTurn.id))
     } finally {
-      setBusy(false)
+      setAsking(false)
+      inputRef.current?.focus()
     }
   }
+
+  const selectedTitle =
+    selected === 'all' ? t.allDocs : docs.find((doc) => doc.id === selected)?.title || t.allDocs
+  const suggestions = [t.suggest1, t.suggest2, t.suggest3]
+  const busy = uploading || asking
 
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
       <aside className="sheet p-5">
-        <h2 className="display text-2xl tracking-[0.16em] text-[#ffaa00]">{t.documents}</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="display text-2xl tracking-[0.16em] text-[#ffaa00]">{t.documents}</h2>
+          <span className="text-xs text-[#ffaa00]">{liveChat ? t.live : t.local}</span>
+        </div>
         <label
           className={`mt-4 block cursor-pointer rounded-2xl border border-dashed px-4 py-8 text-center text-sm ${
             drag ? 'border-[#ff7a00] bg-[#ff7a00]/10' : 'border-[#f4e6c8]/25'
@@ -144,7 +181,7 @@ export function Desk() {
             if (file) void upload(file)
           }}
         >
-          {busy ? t.uploading : t.drop}
+          {uploading ? t.uploading : t.drop}
           <input
             ref={fileRef}
             type="file"
@@ -169,7 +206,7 @@ export function Desk() {
         >
           {t.allDocs}
         </button>
-        <ul className="space-y-2">
+        <ul className="max-h-[42vh] space-y-2 overflow-y-auto">
           {docs.length === 0 ? <li className="text-sm text-[#f4e6c8]/60">{t.emptyDocs}</li> : null}
           {docs.map((doc) => (
             <li key={doc.id} className="flex items-start gap-2">
@@ -192,9 +229,28 @@ export function Desk() {
       </aside>
 
       <section className="sheet flex min-h-[70vh] flex-col p-5">
-        <h2 className="display text-2xl tracking-[0.16em] text-[#ffaa00]">{t.ask}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="display text-2xl tracking-[0.16em] text-[#ffaa00]">{t.ask}</h2>
+          <button type="button" className="btn-ghost text-xs" onClick={() => setTurns([])} disabled={!turns.length}>
+            {t.clear}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-[#f4e6c8]/55">
+          {t.scope}: {selectedTitle}
+        </p>
         <div ref={listRef} className="mt-4 flex-1 space-y-4 overflow-y-auto pr-1">
-          {turns.length === 0 ? <p className="text-[#f4e6c8]/60">{t.emptyChat}</p> : null}
+          {turns.length === 0 ? (
+            <div>
+              <p className="text-[#f4e6c8]/60">{t.emptyChat}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {suggestions.map((item) => (
+                  <button key={item} type="button" className="btn-ghost text-sm" onClick={() => void ask(item)}>
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <AnimatePresence>
             {turns.map((turn) => (
               <motion.article
@@ -204,16 +260,28 @@ export function Desk() {
                 className={`rounded-2xl px-4 py-3 ${turn.role === 'user' ? 'ml-8 bg-[#ff7a00]/15' : 'mr-8 bg-black/40'}`}
               >
                 <p className="whitespace-pre-wrap leading-relaxed">
-                  {turn.content || (busy ? t.thinking : '')}
+                  {turn.content || (asking ? t.thinking : '')}
                 </p>
                 {turn.sources?.length ? (
-                  <ul className="mt-3 space-y-1 text-xs text-[#ffaa00]">
+                  <ul className="mt-3 space-y-1 text-xs">
                     <li className="font-bold uppercase tracking-wider text-[#f4e6c8]/70">{t.sources}</li>
-                    {turn.sources.map((source, index) => (
-                      <li key={`${source.title}-${index}`}>
-                        {source.title} · {t.page} {source.page}
-                      </li>
-                    ))}
+                    {turn.sources.map((source, index) => {
+                      const key = `${turn.id}-${index}`
+                      return (
+                        <li key={key}>
+                          <button
+                            type="button"
+                            className="text-left text-[#ffaa00] hover:text-[#ff7a00]"
+                            onClick={() => setOpenSource(openSource === key ? null : key)}
+                          >
+                            [{index + 1}] {source.title} · {t.page} {source.page}
+                          </button>
+                          {openSource === key ? (
+                            <p className="mt-1 whitespace-pre-wrap text-[#f4e6c8]/70">{source.excerpt}</p>
+                          ) : null}
+                        </li>
+                      )
+                    })}
                   </ul>
                 ) : null}
               </motion.article>
@@ -228,14 +296,22 @@ export function Desk() {
             void ask()
           }}
         >
-          <input
-            className="field"
+          <textarea
+            ref={inputRef}
+            className="field min-h-[3rem] resize-none"
+            rows={2}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault()
+                void ask()
+              }
+            }}
             placeholder={t.placeholder}
             disabled={busy}
           />
-          <button type="submit" className="btn shrink-0" disabled={busy || !question.trim()}>
+          <button type="submit" className="btn shrink-0 self-end" disabled={busy || !question.trim()}>
             {t.send}
           </button>
         </form>

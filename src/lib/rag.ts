@@ -42,6 +42,26 @@ export function chunkText(text: string, pageHint = 1): TextChunk[] {
   return out
 }
 
+const STOP = new Set([
+  'the',
+  'and',
+  'for',
+  'that',
+  'this',
+  'with',
+  'from',
+  'que',
+  'com',
+  'para',
+  'uma',
+  'uns',
+  'nas',
+  'nos',
+  'dos',
+  'das',
+  'por',
+])
+
 function fnv1a(input: string): number {
   let hash = 2166136261
   for (let i = 0; i < input.length; i += 1) {
@@ -58,7 +78,7 @@ export function lexicalEmbedding(text: string): number[] {
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
     .split(/[^\p{L}\p{N}]+/u)
-    .filter((token) => token.length > 2)
+    .filter((token) => token.length > 2 && !STOP.has(token))
 
   for (const token of tokens) {
     const a = fnv1a(token) % EMBEDDING_DIM

@@ -1,13 +1,19 @@
 import { NextRequest } from 'next/server'
 import { chatModel, hasLiveModel, streamText } from '@/lib/models'
 import { searchChunks } from '@/lib/index-document'
+import { clipHistory, type ChatLine } from '@/lib/chat'
 
 function sse(data: unknown) {
   return `data: ${JSON.stringify(data)}\n\n`
 }
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as { question?: string; documentId?: string; locale?: string }
+  const body = (await request.json()) as {
+    question?: string
+    documentId?: string
+    locale?: string
+    history?: ChatLine[]
+  }
   const question = body.question?.trim()
   if (!question) {
     return new Response(JSON.stringify({ error: 'question' }), { status: 400 })
@@ -19,35 +25,50 @@ export async function POST(request: NextRequest) {
     title: hit.title,
     page: hit.page,
     score: hit.score,
-    excerpt: hit.content.slice(0, 220),
+    excerpt: hit.content.slice(0, 280),
   }))
   const context = hits
     .map((hit, index) => `[${index + 1}] ${hit.title} (p.${hit.page})\n${hit.content}`)
     .join('\n\n')
+  const history = clipHistory(body.history ?? [])
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
-      controller.enqueue(encoder.encode(sse({ type: 'sources', sources })))
+      const send = (data: unknown) => controller.enqueue(encoder.encode(sse(data)))
+      send({ type: 'sources', sources })
 
-      const model = chatModel()
-      if (model && hasLiveModel()) {
-        const result = streamText({
-          model,
-          system:
+      try {
+        const model = chatModel()
+        if (model && hasLiveModel()) {
+          const result = streamText({
+            model,
+            system:
+              locale === 'en'
+                ? `You are FOLIO. Answer only from the excerpts. Cite them as [n]. If they do not contain the answer, say so. Reply in English.\n\nExcerpts:\n${context || '(empty)'}`
+                : `És o FOLIO. Responde só com os excertos. Cita-os como [n]. Se não chegarem, diz-o. Português de Portugal.\n\nExcertos:\n${context || '(vazio)'}`,
+            messages: [
+              ...history.map((line) => ({ role: line.role, content: line.content })),
+              { role: 'user' as const, content: question },
+            ],
+          })
+          for await (const delta of result.textStream) {
+            send({ type: 'text', text: delta })
+          }
+        } else {
+          const answer = lexicalAnswer(question, hits, locale)
+          for (const word of answer.split(/(\s+)/)) {
+            send({ type: 'text', text: word })
+          }
+        }
+      } catch {
+        send({
+          type: 'text',
+          text:
             locale === 'en'
-              ? 'Answer only from the provided excerpts. Cite sources as [n]. If the excerpts do not contain the answer, say so. Reply in English.'
-              : 'Responde só com os excertos dados. Cita fontes como [n]. Se os excertos não chegarem, diz-o. Responde em português de Portugal.',
-          prompt: `Context:\n${context || '(empty)'}\n\nQuestion: ${question}`,
+              ? ' The model could not finish this answer. Try again in a moment.'
+              : ' O modelo não conseguiu acabar a resposta. Tenta outra vez daqui a pouco.',
         })
-        for await (const delta of result.textStream) {
-          controller.enqueue(encoder.encode(sse({ type: 'text', text: delta })))
-        }
-      } else {
-        const answer = lexicalAnswer(question, hits, locale)
-        for (const word of answer.split(/(\s+)/)) {
-          controller.enqueue(encoder.encode(sse({ type: 'text', text: word })))
-        }
       }
 
       controller.close()

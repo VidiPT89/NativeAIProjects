@@ -20,10 +20,12 @@ export async function embedText(text: string): Promise<number[]> {
 
 export function chatModel() {
   if (process.env.OPENAI_API_KEY) {
-    return openai(process.env.AI_MODEL || 'gpt-4o-mini')
+    const id = process.env.AI_MODEL
+    return openai(id && !id.startsWith('claude') ? id : 'gpt-4o-mini')
   }
   if (process.env.ANTHROPIC_API_KEY) {
-    return anthropic(process.env.AI_MODEL || 'claude-3-5-haiku-latest')
+    const id = process.env.AI_MODEL
+    return anthropic(id && id.startsWith('claude') ? id : 'claude-3-5-haiku-latest')
   }
   return null
 }

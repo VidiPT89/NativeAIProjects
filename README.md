@@ -2,6 +2,8 @@
 
 > Bilingual PDF desk: upload a document, chunk it, store embeddings in pgvector and stream cited answers, painted in the ividi.dev palette (black, burnt orange, amber).
 
+[![CI](https://github.com/VidiPT89/NativeAIProjects/actions/workflows/ci.yml/badge.svg)](https://github.com/VidiPT89/NativeAIProjects/actions/workflows/ci.yml)
+
 [🐞 Report Bug](https://github.com/VidiPT89/NativeAIProjects/issues) · [✨ Request Feature](https://github.com/VidiPT89/NativeAIProjects/issues)
 
 FOLIO is a Next.js desk for talking to your own PDFs. You drop a file, the text is split into overlapping chunks, each chunk becomes a vector, and PostgreSQL with pgvector returns the closest passages. The answer streams into the chat with page citations. The UI is European Portuguese / English, with the language toggle remembered in `localStorage`.
